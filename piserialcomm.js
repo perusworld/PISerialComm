@@ -106,12 +106,20 @@ SerialAdpter.prototype.doSync = function () {
 	}
 };
 
+SerialAdpter.prototype.processCommand = function (data) {
+	if (null != this.cmdProcessor) {
+		this.cmdProcessor.handleCommand(data);
+	}
+};
+
 function ByteSerialAdpter() {
 	ByteSerialAdpter.super_.call(this);
 	this.conf.COMMAND = {
 		PING_IN: 0xCC, PING_OUT: 0xDD, DATA: 0xEE, EOM_FIRST: 0xFE, EOM_SECOND: 0xFF
 	};
+	this.conf.DATA = new Buffer([this.conf.COMMAND.DATA]);
 	this.conf.EOM = new Buffer([this.conf.COMMAND.EOM_FIRST, this.conf.COMMAND.EOM_SECOND]);
+	this.conf.PING_IN = Buffer.concat([new Buffer([this.conf.COMMAND.PING_IN]), this.conf.EOM]);
 	this.incomingBuffer = {
 		data: [],
 		last: 0
@@ -120,9 +128,14 @@ function ByteSerialAdpter() {
 
 util.inherits(ByteSerialAdpter, SerialAdpter);
 
+ByteSerialAdpter.prototype.sendRaw = function (data) {
+	this.log("Byte Send Raw " + data.toString('hex'));
+	this.serial.write(data);
+};
+
 ByteSerialAdpter.prototype.sendToDevice = function (data) {
 	this.log("Byte Send Data " + data.toString('hex'));
-	this.serial.write(Buffer.concat([data, this.conf.EOM]));
+	this.serial.write(Buffer.concat([this.conf.DATA, data, this.conf.EOM]));
 };
 
 ByteSerialAdpter.prototype.onData = function (data) {
@@ -174,7 +187,7 @@ ByteSerialAdpter.prototype.doSync = function () {
 			this.conf.adapter.count = this.conf.adapter.count + 1;
 			this.serial.write([this.conf.COMMAND.DATA]);
 		}
-		this.sendToDevice(new Buffer([this.conf.COMMAND.PING_IN]));
+		this.sendRaw(this.conf.PING_IN);
 		setTimeout(this.doSync.bind(this), this.conf.syncSleep);
 	}
 };
@@ -199,7 +212,7 @@ SerialCommandProcessor.prototype.handleCommand = function (buf) {
 SerialCommandProcessor.prototype.debugCommand = function (buf) {
 	switch (buf[0]) {
 		default:
-			this.log("Unknown command " + buf.toString('hex'));
+			this.log("Unknown command " + buf.toString());
 			break;
 	}
 };
