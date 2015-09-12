@@ -120,6 +120,7 @@ function ByteSerialAdpter() {
 	this.conf.DATA = new Buffer([this.conf.COMMAND.DATA]);
 	this.conf.EOM = new Buffer([this.conf.COMMAND.EOM_FIRST, this.conf.COMMAND.EOM_SECOND]);
 	this.conf.PING_IN = Buffer.concat([new Buffer([this.conf.COMMAND.PING_IN]), this.conf.EOM]);
+	this.conf.PING_OUT = Buffer.concat([new Buffer([this.conf.COMMAND.PING_OUT]), this.conf.EOM]);
 	this.incomingBuffer = {
 		data: [],
 		last: 0
@@ -161,12 +162,18 @@ ByteSerialAdpter.prototype.onData = function (data) {
 	while (0 < this.cmdBuffer.length()) {
 		cmd = this.cmdBuffer.buffer.shift();
 		if (this.conf.COMMAND.PING_OUT == cmd.cmd) {
+			this.log("Got sync");
 			this.conf.adapter.synced = true;
+		} else if (this.conf.COMMAND.PING_IN == cmd.cmd) {
+			this.conf.adapter.synced = false;
+			this.sendRaw(this.conf.PING_OUT);
+			this.sendRaw(this.conf.PING_IN);
 		} else if (this.conf.COMMAND.DATA == cmd.cmd) {
 			if (this.conf.adapter.synced) {
 				this.processCommand(cmd.data);
 			} else {
 				this.log("Got data without sync " + cmd.data.toString('hex'));
+				this.sendRaw(this.conf.PING_IN);
 			}
 		} else {
 			this.log("Unknown cmd " + cmd.cmd.toString(16));
