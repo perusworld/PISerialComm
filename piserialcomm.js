@@ -212,7 +212,7 @@ SerialCommandProcessor.prototype.handleCommand = function (buf) {
 SerialCommandProcessor.prototype.debugCommand = function (buf) {
 	switch (buf[0]) {
 		default:
-			this.log("Unknown command " + buf.toString());
+			this.log("Unknown command " + buf.toString('hex'));
 			break;
 	}
 };
