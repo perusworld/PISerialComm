@@ -2,7 +2,6 @@
 
 var util = require('util');
 var serialport = require("serialport");
-var CircularBuffer = require('cbarrick-circular-buffer');
 var readline = require('readline');
 
 function SerialContext() {
@@ -56,15 +55,10 @@ function SerialAdpter() {
 			started: false,
 			debugMode: false,
 		},
-		packetSize: 3,
 		syncSleep: 1000,
 		baudrate: 115200
 	};
-
-	this.incomingBuffer = new CircularBuffer({
-		size: 1024,
-		encoding: "buffer"
-	});
+	this.cmdBuffer = new CircularArray(10);
 
 	this.serial = null;
 	this.cmdProcessor = null;
@@ -115,7 +109,12 @@ SerialAdpter.prototype.doSync = function () {
 function ByteSerialAdpter() {
 	ByteSerialAdpter.super_.call(this);
 	this.conf.COMMAND = {
-		PING_IN: 0xCC, PING_OUT: 0xDD, EOM: new Buffer([0xFE, 0xFF])
+		PING_IN: 0xCC, PING_OUT: 0xDD, DATA: 0xEE, EOM_FIRST: 0xFE, EOM_SECOND: 0xFF
+	};
+	this.conf.EOM = new Buffer([this.conf.COMMAND.EOM_FIRST, this.conf.COMMAND.EOM_SECOND]);
+	this.incomingBuffer = {
+		data: [],
+		last: 0
 	};
 }
 
@@ -123,27 +122,41 @@ util.inherits(ByteSerialAdpter, SerialAdpter);
 
 ByteSerialAdpter.prototype.sendToDevice = function (data) {
 	this.log("Byte Send Data " + data.toString('hex'));
-	this.serial.write(Buffer.concat([data, this.conf.COMMAND.EOM]));
+	this.serial.write(Buffer.concat([data, this.conf.EOM]));
 };
 
 ByteSerialAdpter.prototype.onData = function (data) {
-	this.log("Data " + data.toString('hex'));
-	if (this.conf.adapter.synced && this.conf.packetSize == data.length
-		&& (this.conf.COMMAND.DATA == data[0] || this.conf.COMMAND.NONE == data[0])) {
-		this.log('Out Of Sync ReSyncing');
-		this.conf.adapter.synced = false;
-		this.conf.adapter.enabled = false;
-		setTimeout(this.doSync.bind(this), this.conf.syncSleep);
-	} else if (!this.conf.adapter.synced && this.conf.packetSize == data.length
-		&& this.conf.COMMAND.PING_OUT == data[0] && this.conf.COMMAND.DATA == data[2]) {
-		this.conf.adapter.synced = true;
-		this.conf.adapter.enabled = (0x01 & data[1]) == 0x01;
-		this.conf.adapter.debugMode = (0x02 & data[1]) == 0x02;
+	this.log("Byte Data " + data.toString('hex'));
+	var len = data.length;
+	var curr = 0;
+	var cmd;
+	for (var index = 0; index < len; index++) {
+		curr = data[index];
+		if (this.incomingBuffer.last == this.conf.COMMAND.EOM_FIRST
+			&& curr == this.conf.COMMAND.EOM_SECOND) {
+			this.cmdBuffer.push({
+				cmd: this.incomingBuffer.data[0],
+				data: new Buffer(this.incomingBuffer.data.slice(1, this.incomingBuffer.data.length - 1))
+			});
+			this.incomingBuffer.last = 0;
+			this.incomingBuffer.data = [];
+		} else {
+			this.incomingBuffer.data.push(curr);
+			this.incomingBuffer.last = curr;
+		}
 	}
-	if (this.conf.adapter.synced) {
-		this.incomingBuffer.write(data);
-		while (this.conf.packetSize <= this.incomingBuffer.length) {
-			this.processCommand(this.incomingBuffer.read(this.conf.packetSize));
+	while (0 < this.cmdBuffer.length()) {
+		cmd = this.cmdBuffer.buffer.shift();
+		if (this.conf.COMMAND.PING_OUT == cmd.cmd) {
+			this.conf.adapter.synced = true;
+		} else if (this.conf.COMMAND.DATA == cmd.cmd) {
+			if (this.conf.adapter.synced) {
+				this.processCommand(cmd.data);
+			} else {
+				this.log("Got data without sync " + cmd.data.toString('hex'));
+			}
+		} else {
+			this.log("Unknown cmd " + cmd.cmd.toString(16));
 		}
 	}
 };
@@ -162,55 +175,6 @@ ByteSerialAdpter.prototype.doSync = function () {
 			this.serial.write([this.conf.COMMAND.DATA]);
 		}
 		this.sendToDevice(new Buffer([this.conf.COMMAND.PING_IN]));
-		setTimeout(this.doSync.bind(this), this.conf.syncSleep);
-	}
-};
-
-function JsonSerialAdpter() {
-	JsonSerialAdpter.super_.call(this);
-	this.conf.COMMAND = {
-		NONE: "none", PING_IN: "pingIn", PING_OUT: "pingOut", TIMEOUT: "timeout", DATA: "data"
-	};
-}
-
-util.inherits(JsonSerialAdpter, SerialAdpter);
-
-JsonSerialAdpter.prototype.onData = function (data) {
-	this.log("Data " + data.toString('hex'));
-	if (this.conf.adapter.synced && this.conf.packetSize == data.length
-		&& (this.conf.COMMAND.DATA == data[0] || this.conf.COMMAND.NONE == data[0])) {
-		this.log('Out Of Sync ReSyncing');
-		this.conf.adapter.synced = false;
-		this.conf.adapter.enabled = false;
-		setTimeout(this.doSync.bind(this), this.conf.syncSleep);
-	} else if (!this.conf.adapter.synced && this.conf.packetSize == data.length
-		&& this.conf.COMMAND.PING_OUT == data[0] && this.conf.COMMAND.DATA == data[2]) {
-		this.conf.adapter.synced = true;
-		this.conf.adapter.enabled = (0x01 & data[1]) == 0x01;
-		this.conf.adapter.debugMode = (0x02 & data[1]) == 0x02;
-	}
-	if (this.conf.adapter.synced) {
-		this.incomingBuffer.write(data);
-		while (this.conf.packetSize <= this.incomingBuffer.length) {
-			this.processCommand(this.incomingBuffer.read(this.conf.packetSize));
-		}
-	}
-};
-
-JsonSerialAdpter.prototype.doSync = function () {
-	if (this.conf.adapter.synced) {
-		this.log('In Sync');
-		//Done Syncing Stop
-	} else {
-		this.log('Syncing');
-		if (0 == this.conf.adapter.count) {
-			//first pass nothing
-		} else {
-			//shift by one incase of stray buffer data
-			this.conf.adapter.count = this.conf.adapter.count + 1;
-			this.serial.write([this.conf.COMMAND.DATA]);
-		}
-		this.sendToDevice(new Buffer([this.conf.COMMAND.PING_IN, this.conf.COMMAND.DATA, this.conf.COMMAND.DATA]));
 		setTimeout(this.doSync.bind(this), this.conf.syncSleep);
 	}
 };
@@ -248,7 +212,6 @@ function LogSerialCommandProcessor() {
 	this.rl.on('line', this.onDataEntry.bind(this))
 		.on('close', function () {
 			this.log('Closing');
-			process.exit(0);
 		}.bind(this));
 };
 
@@ -271,6 +234,5 @@ LogSerialCommandProcessor.prototype.handleCommand = function (buf) {
 module.exports.SerialContext = SerialContext;
 module.exports.SerialLogger = SerialLogger;
 module.exports.ByteSerialAdpter = ByteSerialAdpter;
-module.exports.JsonSerialAdpter = JsonSerialAdpter;
 module.exports.SerialCommandProcessor = SerialCommandProcessor;
 module.exports.LogSerialCommandProcessor = LogSerialCommandProcessor;

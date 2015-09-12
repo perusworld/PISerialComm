@@ -1,8 +1,8 @@
 {
   "name": "piserialcomm",
   "version": "1.0.0",
-  "private": true,
   "description": "Raspberry PI Serial Communication Helper Library",
+  "private": true,
   "main": "piserialcomm",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

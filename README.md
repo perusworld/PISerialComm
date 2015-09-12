@@ -1,2 +1,3 @@
 # piserialcomm
-Raspberry PI Serial Communication Helper Library
+A Node.js Raspberry PI Serial Communication Helper Module
+
