@@ -1,0 +1,32 @@
+{
+  "name": "piserialcomm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Raspberry PI Serial Communication Helper Library",
+  "main": "piserialcomm",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "cbarrick-circular-buffer": "^1.2.3",
+    "debug": "~2.2.0",
+    "morgan": "~1.6.1",
+    "serialport": "^1.7.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/perusworld/piserialcomm.git"
+  },
+  "keywords": [
+    "pi",
+    "raspberry",
+    "serial",
+    "uart"
+  ],
+  "author": "Saravana Perumal Shanmugam <saravanaperumal@msn.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/perusworld/piserialcomm/issues"
+  },
+  "homepage": "https://github.com/perusworld/piserialcomm"
+}
