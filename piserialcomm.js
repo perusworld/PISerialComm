@@ -213,6 +213,12 @@ SerialCommandProcessor.prototype.init = function (adpter) {
 	this.adapter = adpter;
 };
 
+SerialCommandProcessor.prototype.sendToDevice = function (data) {
+	if (null != this.adapter) {
+		this.adapter.sendToDevice(data);
+	}
+};
+
 SerialCommandProcessor.prototype.handleCommand = function (buf) {
 };
 
