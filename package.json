@@ -1,6 +1,6 @@
 {
   "name": "piserialcomm",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Raspberry PI Serial Communication Helper Library",
   "private": true,
   "main": "piserialcomm",
@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "debug": "~2.2.0",
+    "merge": "^1.2.0",
     "morgan": "~1.6.1",
     "serialport": "^1.7.4"
   },
