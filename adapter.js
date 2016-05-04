@@ -43,11 +43,17 @@ SerialAdpter.prototype.onOpen = function() {
     this.conf.adapter.synced = false;
     this.conf.adapter.count = 0;
     this.serial.on('data', this.onData.bind(this));
-    setTimeout(this.doSync.bind(this), this.conf.syncSleep);
+    this.startSync();
+};
+
+SerialAdpter.prototype.startSync = function() {
 };
 
 SerialAdpter.prototype.onData = function(data) {
-    this.log("Data " + data.toString('hex'));
+    this.log("Data " + data.toString());
+    if (this.conf.adapter.synced) {
+        this.processCommand(cmd.data);
+    }
 };
 
 SerialAdpter.prototype.sendToDevice = function(data) {
@@ -134,6 +140,10 @@ ByteSerialAdpter.prototype.onData = function(data) {
     }
 };
 
+ByteSerialAdpter.prototype.startSync = function() {
+    setTimeout(this.doSync.bind(this), this.conf.syncSleep);
+};
+
 ByteSerialAdpter.prototype.doSync = function() {
     if (this.conf.adapter.synced) {
         this.log('In Sync');
@@ -154,4 +164,5 @@ ByteSerialAdpter.prototype.doSync = function() {
     }
 };
 
+module.exports.SerialAdpter = SerialAdpter;
 module.exports.ByteSerialAdpter = ByteSerialAdpter;

@@ -49,11 +49,8 @@ function LogSerialCommandProcessor() {
 util.inherits(LogSerialCommandProcessor, SerialCommandProcessor);
 
 LogSerialCommandProcessor.prototype.onDataEntry = function (line) {
-	switch (line.trim()) {
-		default:
-			this.log('Unknown command ' + line.trim());
-			break;
-	}
+	this.log('Sending ', line.trim());
+	this.sendToDevice(line.trim());
 	this.rl.prompt();
 };
 
