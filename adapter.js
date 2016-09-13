@@ -2,7 +2,7 @@
 
 var util = require('util');
 var merge = require("merge");
-var serialport = require("serialport");
+var SerialPort = require("serialport");
 var ctx = require('./context');
 var appConfig = require('./config');
 var protocol = require('./protocol');
@@ -17,22 +17,22 @@ function SerialAdpter(config) {
 
     this.serial = null;
     this.cmdProcessor = null;
-};
+}
 
 SerialAdpter.prototype.log = function() {
-    if (null != ctx.SerialContext.logger) {
+    if (null !== ctx.SerialContext.logger) {
         ctx.SerialContext.logger.log(arguments);
     }
 };
 
 SerialAdpter.prototype.buildSerial = function(device) {
-    return new serialport.SerialPort(device, {
-        baudrate: this.conf.baudrate, parser: serialport.parsers.raw
+    return new SerialPort(device, {
+        baudrate: this.conf.baudrate, parser: SerialPort.parsers.raw
     });
 };
 
 SerialAdpter.prototype.init = function(device, processor) {
-    if (null == this.serial) {
+    if (null === this.serial) {
         this.cmdProcessor = processor;
         this.serial = this.buildSerial(device);
         this.serial.on("open", this.onOpen.bind(this));
@@ -47,12 +47,13 @@ SerialAdpter.prototype.onOpen = function() {
 };
 
 SerialAdpter.prototype.startSync = function() {
+    this.conf.adapter.synced = true;
 };
 
 SerialAdpter.prototype.onData = function(data) {
     this.log("Data " + data.toString());
     if (this.conf.adapter.synced) {
-        this.processCommand(cmd.data);
+        this.processCommand(data);
     }
 };
 
@@ -72,7 +73,7 @@ SerialAdpter.prototype.doSync = function() {
 };
 
 SerialAdpter.prototype.processCommand = function(data) {
-    if (null != this.cmdProcessor) {
+    if (null !== this.cmdProcessor) {
         this.cmdProcessor.handleCommand(data);
     }
 };
@@ -105,8 +106,7 @@ ByteSerialAdpter.prototype.onData = function(data) {
     var cmd;
     for (var index = 0; index < len; index++) {
         curr = data[index];
-        if (this.incomingBuffer.last == this.conf.protocol.COMMAND.EOM_FIRST
-            && curr == this.conf.protocol.COMMAND.EOM_SECOND) {
+        if (this.incomingBuffer.last == this.conf.protocol.COMMAND.EOM_FIRST && curr == this.conf.protocol.COMMAND.EOM_SECOND) {
             this.cmdBuffer.push({
                 cmd: this.incomingBuffer.data[0],
                 data: new Buffer(this.incomingBuffer.data.slice(1, this.incomingBuffer.data.length - 1))
@@ -150,7 +150,7 @@ ByteSerialAdpter.prototype.doSync = function() {
         //Done Syncing Stop
     } else {
         this.log('Syncing');
-        if (0 == this.conf.adapter.count) {
+        if (0 === this.conf.adapter.count) {
             this.log('Starting Sync');
             this.conf.adapter.count = this.conf.adapter.count + 1;
             //first pass nothing

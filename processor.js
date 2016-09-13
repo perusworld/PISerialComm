@@ -6,10 +6,10 @@ var ctx = require('./context');
 
 function SerialCommandProcessor() {
 	this.adapter = null;
-};
+}
 
 SerialCommandProcessor.prototype.log = function () {
-	if (null != ctx.SerialContext.logger) {
+	if (null !== ctx.SerialContext.logger) {
 		ctx.SerialContext.logger.log(arguments);
 	}
 };
@@ -19,7 +19,7 @@ SerialCommandProcessor.prototype.init = function (adpter) {
 };
 
 SerialCommandProcessor.prototype.sendToDevice = function (data) {
-	if (null != this.adapter) {
+	if (null !== this.adapter) {
 		this.adapter.sendToDevice(data);
 	}
 };
