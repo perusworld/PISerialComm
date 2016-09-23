@@ -1,6 +1,6 @@
 {
   "name": "piserialcomm",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Raspberry PI Serial Communication Helper Library",
   "private": true,
   "main": "piserialcomm",
